@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.http.client.fluent.Request
 import java.lang.Math.ceil
+import java.time.LocalDate
 import java.util.*
 
 val API_BASE_URL = "https://bonus.ly/api/v1"
@@ -14,6 +15,11 @@ val API_ACCESS_TOKEN = System.getenv("BONUSLY_API_ACCESS_TOKEN")!!
 val LOSING_USERS = (System.getenv("BONUSLY_LOSING_USERS") ?: "").split(',').toSet()
 
 fun main(args: Array<String>) {
+    if (!isLastDayOfMonth()) {
+        println("It's not the last day of the month!")
+        return
+    }
+
     val me = getUsersMe()
     println("Current giving balance: " + me.givingBalance)
 
@@ -42,6 +48,13 @@ fun main(args: Array<String>) {
     }
 
     println("Giving balance left: " + givingBalanceLeft)
+}
+
+fun isLastDayOfMonth(): Boolean {
+    val now = LocalDate.now()
+    val daysLeft = now.lengthOfMonth() - now.dayOfMonth
+    println("Days left: $daysLeft")
+    return daysLeft == 0
 }
 
 val MAPPER: ObjectMapper = ObjectMapper()
