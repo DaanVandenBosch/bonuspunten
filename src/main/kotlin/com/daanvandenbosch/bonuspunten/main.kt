@@ -1,4 +1,4 @@
-package com.daanvandenbosch
+package com.daanvandenbosch.bonuspunten
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
