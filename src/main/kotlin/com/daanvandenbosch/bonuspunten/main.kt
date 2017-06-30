@@ -53,6 +53,7 @@ fun main(args: Array<String>) {
 fun isLastDayOfMonth(): Boolean {
     val now = LocalDate.now()
     val daysLeft = now.lengthOfMonth() - now.dayOfMonth
+    println("Date: $now")
     println("Days left: $daysLeft")
     return daysLeft == 0
 }
