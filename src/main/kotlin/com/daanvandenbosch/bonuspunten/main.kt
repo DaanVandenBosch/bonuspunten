@@ -6,13 +6,13 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.apache.http.client.fluent.Request
-import java.lang.Math.ceil
+import java.lang.Math.round
 import java.time.LocalDate
 import java.util.*
 
 val API_BASE_URL = "https://bonus.ly/api/v1"
 val API_ACCESS_TOKEN = System.getenv("BONUSLY_API_ACCESS_TOKEN")!!
-val LOSING_USERS = (System.getenv("BONUSLY_LOSING_USERS") ?: "").split(',').toSet()
+val SPECIAL_USERS = (System.getenv("BONUSLY_SPECIAL_USERS") ?: "").split(',').toSet()
 
 fun main(args: Array<String>) {
     if (!isLastDayOfMonth()) {
@@ -21,30 +21,43 @@ fun main(args: Array<String>) {
     }
 
     val me = getUsersMe()
-    println("Current giving balance: " + me.givingBalance)
+    val givingBalance = me.givingBalance!!
+    println("Current giving balance: " + givingBalance)
 
-    val allOthers = getUsers().filter { it.userMode == "normal" && it.id != me.id }
-    val others = allOthers.filter { !LOSING_USERS.contains(it.username) }.toMutableList()
-    Collections.shuffle(others)
-    others.addAll(allOthers.filter { LOSING_USERS.contains(it.username) })
+    val others = getUsers().filter { it.userMode == "normal" && it.id != me.id }
+    val specialUsers = others.filter { SPECIAL_USERS.contains(it.username) }.toMutableList()
+    val regularUsers = others.filter { !SPECIAL_USERS.contains(it.username) }.toMutableList()
+    Collections.shuffle(regularUsers)
+    specialUsers.addAll(regularUsers.takeLast(3))
+    Collections.shuffle(specialUsers)
+    val winners = regularUsers.dropLast(3) + specialUsers
 
-    var givingBalanceLeft = me.givingBalance!!
-    var pos = 1
+    // All remaining giving balance will be distributed over colleagues and prizes will go down in value linearly.
+    // E.g. the person in tenth place will receive one tenth of what the winner receives.
+    // prize factor = giving balance / nth triangular number
+    // prize for winner i = (n - i + 1) * prize factor
+    // where n = the number of colleagues
+    val prizeFactor = givingBalance / (winners.size * (1 + winners.size) / 2.0)
 
-    for (other in others) {
+    var place = 1
+    var givingBalanceLeft = givingBalance
+
+    for (winner in winners) {
         if (givingBalanceLeft <= 0) {
             break
         }
 
-        val prize = ceil(givingBalanceLeft.toDouble() / 3.0).toInt()
+        val prize = minOf(
+                maxOf(1, round((winners.size - place + 1) * prizeFactor).toInt()),
+                givingBalanceLeft)
 
-        val posStr = pos.toString() + (if (pos == 1) "ste" else "de")
-        val reason = "+$prize @${other.username} omdat hij/zij de $posStr prijs won in Daan's grote, maandelijkse bonuspuntenloterij! #winnaar"
+        val posStr = place.toString() + (if (place == 1) "ste" else "de")
+        val reason = "+$prize @${winner.username} omdat hij/zij de $posStr prijs won in Daan's grote, maandelijkse bonuspuntenloterij! #winnaar"
         println(reason)
         createBonus(reason)
 
         givingBalanceLeft -= prize
-        pos += 1
+        place += 1
     }
 
     println("Giving balance left: " + givingBalanceLeft)
